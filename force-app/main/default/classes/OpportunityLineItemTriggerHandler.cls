@@ -4,7 +4,6 @@ public  class OpportunityLineItemTriggerHandler {
         for (OpportunityLineItem oppit : newList) {
             productIdSet.add(oppit.Product2Id);
         }
-        system.debug('***productIdSet: '+ productIdSet);
         Map<Id,Stock_Count__c> prodIdStockCountMap = new Map<Id,Stock_Count__c>();
         for(Product2 p : [SELECT Id, IsActive, (SELECT Id, StockCount__c FROM Stock_Counts__r LIMIT 1)
                            FROM Product2 WHERE (Id IN: productIdSet) AND (IsActive = true)]){ 
@@ -14,9 +13,8 @@ public  class OpportunityLineItemTriggerHandler {
 
         List<OpportunityLineItem> oppitList = new List<OpportunityLineItem>();
         for(OpportunityLineItem oppit : newList) {
-            system.debug('*** oppit.Quantity before insert: '+ oppit.Quantity);
             if (prodIdStockCountMap.isEmpty() || !prodIdStockCountMap.containskey(oppit.Product2Id)) {//prevent insert, product does not exist or is inactive
-                oppit.addError('You cannot insert this opportunity product because product does not exist or inactive'); 
+                oppit.addError('You cannot insert this opportunity product because product does not exist or is inactive'); 
             } 
             else if (prodIdStockCountMap.get(oppit.Product2Id).StockCount__c  < oppit.Quantity) { //prevent insert, not enought products in stock
                 oppit.addError('You cannot insert this opportunity product because there is not enought stock available'); 
@@ -30,20 +28,6 @@ public  class OpportunityLineItemTriggerHandler {
 
             }
         }
-
-        // Database.SaveResult[] results = Database.insert(oppitList, false);
-        // for (Database.SaveResult result : results) {
-        //     if (result.isSuccess()) {
-        //         System.debug('@@@Opportunity item successfully inserted, Oppit.id is: ' + result.getId());
-        //     }
-        //     else { //Error           
-        //         for(Database.Error error : result.getErrors()) {
-        //             System.debug('@@@' + error.getStatusCode() + ': ' + error.getMessage() + 
-        //                         ' Fields that produce the error: ' + error.getFields());
-
-        //         }
-        //     }
-        // }
        
     }
 
@@ -57,7 +41,7 @@ public  class OpportunityLineItemTriggerHandler {
             else {
                 productIdOppQuantityMap.put(oppit.Product2Id, oppit.Quantity);
             }
-            system.debug('$$$ productIdOppQuantityMap.get(oppit.Product2Id): '+ productIdOppQuantityMap.get(oppit.Product2Id));
+            system.debug('*** productIdOppQuantityMap.get(oppit.Product2Id): '+ productIdOppQuantityMap.get(oppit.Product2Id));
         }
         List<Stock_Count__c> stockCountToUpdateList = new List<Stock_Count__c>();
         for (Stock_Count__c sc: [SELECT Id, Product__c, StockCount__c FROM Stock_Count__c
@@ -65,22 +49,13 @@ public  class OpportunityLineItemTriggerHandler {
             sc.StockCount__c =  sc.StockCount__c - productIdOppQuantityMap.get(sc.Product__c);
             stockCountToUpdateList.add(sc);
         }
-
-        update stockCountToUpdateList;
-
-        // Database.SaveResult[] results = Database.update(stockCountToUpdateList, false);
-        // for (Database.SaveResult result : results) {
-        //     if (result.isSuccess()) {
-        //         System.debug('@@@ Stock Count successfully updated, sc.id is: ' + result.getId());
-        //     }
-        //     else { //Error           
-        //         for(Database.Error error : result.getErrors()) {
-        //             System.debug('@@@' + error.getStatusCode() + ': ' + error.getMessage() + 
-        //                         ' Fields that produce the error: ' + error.getFields());
-
-        //         }
-        //     }
-        // }
+        system.debug('*** stockCountToUpdateList: '+ stockCountToUpdateList);
+        try {
+            update stockCountToUpdateList;
+        }
+        catch (DmlException e){
+            System.debug('***Exception: ' + e.getMessage());
+        }
         
     }
 
